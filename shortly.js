@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -21,29 +22,83 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(session({
+  resave: true,
+  saveUninitialized: true,
+  secret: 'shfifty-five',
+  signedIn: false
+}));
 
 
 app.get('/', 
 function(req, res) {
-  res.render('index');
+  if (req.session.cookie.signedIn) {
+    res.render('index');
+  } else {
+  // console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~', req.session.cookie.signedIn);
+    res.redirect(301, '/login');
+  }
 });
 
 app.get('/create', 
 function(req, res) {
-  res.render('index');
+  res.redirect(301, '/login');
+  // res.render('index');
 });
 
 app.get('/links', 
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.status(200).send(links.models);
-  });
+  if (req.session.cookie.signedIn) {
+    Links.reset().fetch().then(function(links) {
+      res.status(200).send(links.models);
+    });
+  } else {
+    res.redirect(301, '/login');
+  }
 });
+
+app.get('/login', 
+function(req, res) {
+  res.render('login');
+});
+
+app.post('/login', function(req, res) {
+  var userInfo = req.body; 
+  new User({ username: userInfo.username, password: userInfo.password}).fetch().then(function(found) {
+    if (found) {
+      req.session.cookie.signedIn = true;
+      res.redirect(301, '/');
+    } else {
+      res.redirect(301, '/login');
+    }
+  });  
+});
+
+app.post('/signup', 
+  function(req, res) {
+    //maybe add some user and pass validation
+    var userInfo = req.body; 
+    new User({ username: userInfo.username}).fetch().then(function(found) {
+      if (found) {
+        res.status(200).send('You\'re already a user – Log in!');
+      } else {
+        Users.create({
+          username: userInfo.username, 
+          password: userInfo.password
+        }).then(function(newUser) {
+          // res.status(201).end();
+          // res.render('index');
+          req.session.cookie.signedIn = true;
+          res.redirect(301, '/');
+        });
+      }
+    });
+  });
+
 
 app.post('/links', 
 function(req, res) {
   var uri = req.body.url;
-
   if (!util.isValidUrl(uri)) {
     console.log('Not a valid url: ', uri);
     return res.sendStatus(404);
@@ -103,5 +158,7 @@ app.get('/*', function(req, res) {
   });
 });
 
-console.log('Shortly is listening on 4568');
-app.listen(4568);
+if (process.env.NODE_ENV !== 'test') {
+  console.log('Shortly is listening on 4568');
+  app.listen(4568);
+}
