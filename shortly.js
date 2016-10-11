@@ -31,42 +31,51 @@ app.use(session({
 
 
 app.get('/', 
-function(req, res) {
-  if (req.session.cookie.signedIn) {
-    res.render('index');
-  } else {
-  // console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~', req.session.cookie.signedIn);
-    res.redirect(301, '/login');
-  }
-});
+  function(req, res) {
+    if (req.session.signedIn) {
+      res.render('index');
+    } else {
+      res.redirect(301, '/login');
+    }
+  });
 
 app.get('/create', 
-function(req, res) {
-  res.redirect(301, '/login');
-  // res.render('index');
-});
+  function(req, res) {
+    res.redirect(301, '/login');
+    // res.render('index');
+  });
 
 app.get('/links', 
-function(req, res) {
-  if (req.session.cookie.signedIn) {
-    Links.reset().fetch().then(function(links) {
-      res.status(200).send(links.models);
-    });
-  } else {
-    res.redirect(301, '/login');
-  }
-});
+  function(req, res) {
+    if (req.session.signedIn) {
+      Links.reset().fetch().then(function(links) {
+        res.status(200).send(links.models);
+      });
+    } else {
+      res.redirect(301, '/login');
+    }
+  });
 
 app.get('/login', 
-function(req, res) {
-  res.render('login');
-});
+  function(req, res) {
+    if (req.session.signedIn) {
+      res.redirect(301, '/');
+    } else {
+      res.render('login');
+    }
+  });
+
+app.get('/signup', 
+  function(req, res) {
+    res.render('signup');
+  });
+
 
 app.post('/login', function(req, res) {
   var userInfo = req.body; 
   new User({ username: userInfo.username, password: userInfo.password}).fetch().then(function(found) {
     if (found) {
-      req.session.cookie.signedIn = true;
+      req.session.signedIn = true;
       res.redirect(301, '/');
     } else {
       res.redirect(301, '/login');
@@ -88,7 +97,7 @@ app.post('/signup',
         }).then(function(newUser) {
           // res.status(201).end();
           // res.render('index');
-          req.session.cookie.signedIn = true;
+          req.session.signedIn = true;
           res.redirect(301, '/');
         });
       }
@@ -97,35 +106,35 @@ app.post('/signup',
 
 
 app.post('/links', 
-function(req, res) {
-  var uri = req.body.url;
-  if (!util.isValidUrl(uri)) {
-    console.log('Not a valid url: ', uri);
-    return res.sendStatus(404);
-  }
-
-  new Link({ url: uri }).fetch().then(function(found) {
-    if (found) {
-      res.status(200).send(found.attributes);
-    } else {
-      util.getUrlTitle(uri, function(err, title) {
-        if (err) {
-          console.log('Error reading URL heading: ', err);
-          return res.sendStatus(404);
-        }
-
-        Links.create({
-          url: uri,
-          title: title,
-          baseUrl: req.headers.origin
-        })
-        .then(function(newLink) {
-          res.status(200).send(newLink);
-        });
-      });
+  function(req, res) {
+    var uri = req.body.url;
+    if (!util.isValidUrl(uri)) {
+      console.log('Not a valid url: ', uri);
+      return res.sendStatus(404);
     }
+
+    new Link({ url: uri }).fetch().then(function(found) {
+      if (found) {
+        res.status(200).send(found.attributes);
+      } else {
+        util.getUrlTitle(uri, function(err, title) {
+          if (err) {
+            console.log('Error reading URL heading: ', err);
+            return res.sendStatus(404);
+          }
+
+          Links.create({
+            url: uri,
+            title: title,
+            baseUrl: req.headers.origin
+          })
+          .then(function(newLink) {
+            res.status(200).send(newLink);
+          });
+        });
+      }
+    });
   });
-});
 
 /************************************************************/
 // Write your authentication routes here
