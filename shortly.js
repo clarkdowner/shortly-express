@@ -23,10 +23,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 app.use(session({
-  resave: true,
+  resave: false,
   saveUninitialized: true,
-  secret: 'shfifty-five',
-  signedIn: false
+  secret: 'shfifty-five'
 }));
 
 
@@ -35,14 +34,13 @@ app.get('/',
     if (req.session.signedIn) {
       res.render('index');
     } else {
-      res.redirect(301, '/login');
+      res.redirect('/login');
     }
   });
 
 app.get('/create', 
   function(req, res) {
-    res.redirect(301, '/login');
-    // res.render('index');
+    res.redirect('/login');
   });
 
 app.get('/links', 
@@ -52,14 +50,14 @@ app.get('/links',
         res.status(200).send(links.models);
       });
     } else {
-      res.redirect(301, '/login');
+      res.redirect('/login');
     }
   });
 
 app.get('/login', 
   function(req, res) {
     if (req.session.signedIn) {
-      res.redirect(301, '/');
+      res.redirect('/');
     } else {
       res.render('login');
     }
@@ -70,15 +68,22 @@ app.get('/signup',
     res.render('signup');
   });
 
+app.get('/logout', 
+  function(req, res) {
+    req.session.destroy(function(err) {
+      res.redirect('/login');
+    });
+  });
+
 
 app.post('/login', function(req, res) {
   var userInfo = req.body; 
   new User({ username: userInfo.username, password: userInfo.password}).fetch().then(function(found) {
     if (found) {
       req.session.signedIn = true;
-      res.redirect(301, '/');
+      res.redirect('/');
     } else {
-      res.redirect(301, '/login');
+      res.redirect('/login');
     }
   });  
 });
@@ -95,10 +100,8 @@ app.post('/signup',
           username: userInfo.username, 
           password: userInfo.password
         }).then(function(newUser) {
-          // res.status(201).end();
-          // res.render('index');
           req.session.signedIn = true;
-          res.redirect(301, '/');
+          res.redirect('/');
         });
       }
     });
